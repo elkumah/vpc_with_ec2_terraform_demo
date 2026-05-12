@@ -69,3 +69,28 @@ resource "aws_security_group" "web_sg" {
         Name = "${var.vpc_name}-WebSG"
     }
 }   
+# import key pair
+resource "aws_key_pair" "deployer" {
+    key_name   = "deployer-key"
+    public_key = file("~/.ssh/id_rsa.pub")
+}
+# Create data source for the latest Ubuntu AMI
+data "aws_ami" "ubuntu" {
+    most_recent = true
+    filter {
+        name   = "name"
+        values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+    }
+    owners = ["099720109477"] # Canonical
+}
+# Create an EC2 instance in the public subnet
+resource "aws_instance" "web_server" {
+    ami           = data.aws_ami.ubuntu.id
+    instance_type = var.instance_type
+    subnet_id     = aws_subnet.public.id
+    security_groups = [aws_security_group.web_sg.name]
+    key_name      = aws_key_pair.deployer.key_name
+    tags = {
+        Name = var.instance_name
+    }
+}
